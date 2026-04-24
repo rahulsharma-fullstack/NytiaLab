@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Database
     db_host: str = "localhost"
-    db_port: int = 5432
+    db_port: int = 5433
     db_name: str = "nytia_dev"
     db_user: str = "nytia_user"
     db_password: str = "local_dev_password"
