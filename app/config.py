@@ -25,5 +25,20 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
+    # Database
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_name: str = "nytia_dev"
+    db_user: str = "nytia_user"
+    db_password: str = "local_dev_password"
+
+    @property
+    def database_url(self) -> str:
+        """Build the SQLAlchemy database URL from settings."""
+        return (
+            f"postgresql+psycopg2://{self.db_user}:{self.db_password}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+        )
+
 
 settings = Settings()
