@@ -23,9 +23,7 @@ class Recommendation(Base):
     employee_id: Mapped[str] = mapped_column(
         String(10), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False
     )
-    product_id: Mapped[int] = mapped_column(
-        ForeignKey("products.id"), nullable=False
-    )
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     score: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     algorithm_version: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -37,9 +35,7 @@ class Recommendation(Base):
     employee: Mapped["Employee"] = relationship(back_populates="recommendations")
     product: Mapped["Product"] = relationship(back_populates="recommendations")
 
-    __table_args__ = (
-        Index("idx_recommendations_employee_time", "employee_id", "generated_at"),
-    )
+    __table_args__ = (Index("idx_recommendations_employee_time", "employee_id", "generated_at"),)
 
     def __repr__(self) -> str:
         return (

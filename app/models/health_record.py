@@ -15,12 +15,22 @@ if TYPE_CHECKING:
 
 # Enum values as Python constants (used in CHECK constraints)
 VALID_FACTORS = (
-    "Sleep", "Depression", "Smoke", "Stress",
-    "Movement", "Nutrition", "Wellness", "Obesity",
+    "Sleep",
+    "Depression",
+    "Smoke",
+    "Stress",
+    "Movement",
+    "Nutrition",
+    "Wellness",
+    "Obesity",
 )
 VALID_CONDITIONS = (
-    "Type 2 Diabetes", "Cardiovascular Disease", "Chronic Kidney Disease",
-    "Cancer", "Mental Illness", "Osteoporosis",
+    "Type 2 Diabetes",
+    "Cardiovascular Disease",
+    "Chronic Kidney Disease",
+    "Cancer",
+    "Mental Illness",
+    "Osteoporosis",
 )
 VALID_STATUSES = ("Suffering", "At Risk")
 VALID_SEVERITIES = ("Important", "Very Important")
@@ -49,9 +59,7 @@ class HealthRecord(Base):
     unit: Mapped[str] = mapped_column(String(20), nullable=False)
     improvement_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     employee: Mapped["Employee"] = relationship(back_populates="health_records")

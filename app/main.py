@@ -23,5 +23,5 @@ def root() -> dict[str, str]:
     return {
         "name": "Nytia Recommender API",
         "version": "0.1.0",
-        "docs": "/docs", 
+        "docs": "/docs",
     }

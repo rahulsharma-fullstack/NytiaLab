@@ -1,7 +1,7 @@
 """Repository for Employee database operations."""
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.models import Employee, HealthRecord
 
@@ -30,4 +30,3 @@ class EmployeeRepository:
             .order_by(HealthRecord.record_date.desc())
         )
         return list(self.db.execute(stmt).scalars().all())
-        

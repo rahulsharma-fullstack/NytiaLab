@@ -47,9 +47,7 @@ class ProductRepository:
         if service_type is not None:
             stmt = stmt.where(Product.service_type == service_type)
         if condition is not None:
-            stmt = stmt.join(ProductCondition).where(
-                ProductCondition.health_condition == condition
-            )
+            stmt = stmt.join(ProductCondition).where(ProductCondition.health_condition == condition)
         if factor is not None:
             stmt = stmt.join(ProductFactor).where(ProductFactor.factor == factor)
 

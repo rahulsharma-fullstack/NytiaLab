@@ -31,9 +31,7 @@ class Product(Base):
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -45,9 +43,7 @@ class Product(Base):
     factors: Mapped[list["ProductFactor"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
-    recommendations: Mapped[list["Recommendation"]] = relationship(
-        back_populates="product"
-    )
+    recommendations: Mapped[list["Recommendation"]] = relationship(back_populates="product")
 
     __table_args__ = (
         CheckConstraint(

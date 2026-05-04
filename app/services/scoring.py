@@ -53,12 +53,12 @@ def score_product_for_employee(
     employee_conditions = {
         (rec.health_condition, rec.severity, rec.status) for rec in health_records
     }
-    employee_factors = {
-        (rec.factor, rec.severity, rec.status) for rec in health_records
-    }
+    employee_factors = {(rec.factor, rec.severity, rec.status) for rec in health_records}
 
     # Build lookup tables of what this product targets.
-    product_conditions = {pc.health_condition: float(pc.relevance_score) for pc in product.conditions}
+    product_conditions = {
+        pc.health_condition: float(pc.relevance_score) for pc in product.conditions
+    }
     product_factors = {pf.factor: float(pf.relevance_score) for pf in product.factors}
 
     # Score condition matches (direct disease targeting)
@@ -69,9 +69,7 @@ def score_product_for_employee(
             stat_w = STATUS_WEIGHT.get(status, 1.0)
             contribution = CONDITION_MATCH_BASE * relevance * sev_w * stat_w
             score += contribution
-            reasons.append(
-                f"Targets your {condition} ({status}, {severity})"
-            )
+            reasons.append(f"Targets your {condition} ({status}, {severity})")
 
     # Score factor matches (preventive lifestyle targeting)
     for factor, severity, status in employee_factors:
@@ -81,9 +79,7 @@ def score_product_for_employee(
             stat_w = STATUS_WEIGHT.get(status, 1.0)
             contribution = FACTOR_MATCH_BASE * relevance * sev_w * stat_w
             score += contribution
-            reasons.append(
-                f"Addresses your {factor} factor ({status}, {severity})"
-            )
+            reasons.append(f"Addresses your {factor} factor ({status}, {severity})")
 
     return ScoredProduct(product=product, score=score, reasons=reasons)
 
@@ -99,10 +95,7 @@ def rank_products(
     """
     health_records_list = list(health_records)
 
-    scored = [
-        score_product_for_employee(product, health_records_list)
-        for product in products
-    ]
+    scored = [score_product_for_employee(product, health_records_list) for product in products]
 
     # Filter out zero-score products (they don't match the employee at all)
     scored = [sp for sp in scored if sp.score > 0]

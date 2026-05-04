@@ -5,14 +5,14 @@ to produce ranked, explained recommendations.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models import HealthRecord, Recommendation
-from app.repositories import EmployeeRepository, ProductRepository
-from app.services.employee_service import EmployeeNotFoundError, EmployeeService
+from app.models import Recommendation
+from app.repositories import ProductRepository
+from app.services.employee_service import EmployeeService
 from app.services.scoring import ALGORITHM_VERSION, ScoredProduct, rank_products
 
 
@@ -48,7 +48,7 @@ class RecommenderService:
         if not records:
             return RecommendationBundle(
                 employee_id=employee_id,
-                generated_at=datetime.now(timezone.utc),
+                generated_at=datetime.now(UTC),
                 algorithm_version=ALGORITHM_VERSION,
                 items=[],
             )
@@ -65,10 +65,7 @@ class RecommenderService:
         # 4. Eager-load conditions/factors for each candidate so the scoring function
         #    can read them without triggering N+1 queries.
         candidate_ids = [p.id for p in candidates]
-        candidates_full = [
-            self.product_repo.get_by_id(pid)
-            for pid in candidate_ids
-        ]
+        candidates_full = [self.product_repo.get_by_id(pid) for pid in candidate_ids]
         # Filter out any None values (shouldn't happen but defensive)
         candidates_full = [c for c in candidates_full if c is not None]
 
@@ -83,7 +80,7 @@ class RecommenderService:
 
         return RecommendationBundle(
             employee_id=employee_id,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
             algorithm_version=ALGORITHM_VERSION,
             items=scored,
         )
@@ -110,9 +107,7 @@ class RecommenderService:
 
         # We have only one type in top_n. Find the best product of the other type.
         only_type = next(iter(types_in_top))
-        other_type = (
-            "condition_service" if only_type == "factor_service" else "factor_service"
-        )
+        other_type = "condition_service" if only_type == "factor_service" else "factor_service"
 
         for sp in scored:
             if sp.product.service_type == other_type:
@@ -145,4 +140,3 @@ class RecommenderService:
         ]
         self.db.add_all(rows)
         self.db.commit()
-        

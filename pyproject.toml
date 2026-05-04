@@ -17,7 +17,40 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "pre-commit>=4.6.0",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "ruff>=0.15.11",
 ]
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [
+    ".venv",
+    "alembic/versions",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports, undefined names)
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear (likely bugs)
+    "C4",  # flake8-comprehensions (better list/dict comprehensions)
+    "UP",  # pyupgrade (modern Python syntax)
+    "N",   # pep8-naming
+]
+ignore = [
+    "E501",  # line too long (formatter handles it)
+    "B008",  # FastAPI uses Depends() in default args on purpose
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802", "N803"]  # allow non-snake-case in tests
+"alembic/env.py" = ["E402"]  # alembic env imports after sys.path setup
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
