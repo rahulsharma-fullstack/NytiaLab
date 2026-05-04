@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from app.routers import employees, health, products
+from app.routers import employees, health, products, recommendations
 
 app = FastAPI(
     title="Nytia Recommender API",
@@ -14,6 +14,7 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(employees.router)
 app.include_router(products.router)
+app.include_router(recommendations.router)
 
 
 @app.get("/")

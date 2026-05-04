@@ -8,6 +8,7 @@ from app.schemas.product import (
     ProductFactorResponse,
     ProductResponse,
 )
+from app.schemas.recommendation import RecommendationItem, RecommendationResponse
 
 __all__ = [
     "EmployeeResponse",
@@ -16,4 +17,6 @@ __all__ = [
     "ProductDetailResponse",
     "ProductFactorResponse",
     "ProductResponse",
+    "RecommendationItem",
+    "RecommendationResponse",
 ]
