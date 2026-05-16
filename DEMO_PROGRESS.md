@@ -97,4 +97,38 @@ Cleanup (made centralised error handlers actually work):
 Result:
 - `uv run pytest` -> **23 passed**.
 
-### Step 4: ...
+### Step 4: seed data review (no changes needed)
+
+Reviewed existing seed data:
+- 8 employees across Ontario regions
+- 12 health records covering each of the 6 conditions + most of the 8 factors
+- 12 products (6 factor-services + 6 condition-services)
+- Each employee tells a distinct story: heart-risk (E0001), multi-issue severe (E0002), preventive (E0003), single severe mental health (E0004), cancer (E0005), diabetes (E0006), multi-at-risk (E0007), bone health (E0008).
+
+Decision: skip changes. Variety is already strong for the demo. Time is better spent on the UI.
+
+### Step 5: simple demo UI served by FastAPI
+
+New file:
+- `app/static/index.html` - single-page demo UI. Embedded CSS, vanilla JS. No build step.
+
+Layout:
+- Top bar with the title and tagline.
+- Controls row: employee dropdown + top-N input + algorithm version label.
+- Two cards side-by-side (stacks on narrow screens):
+  - **Health profile**: region badge, 3 KPI tiles (conditions / factors / suffering count), and a table of health records with severity + status badges.
+  - **Top recommendations**: ranked list with a numbered chip, name, category + price, a coloured "Treatment" / "Preventive" badge, a score pill, and a bullet list of plain-English reasons.
+
+JS calls three existing endpoints in parallel: `/employees/{id}`, `/employees/{id}/health-records`, `/recommend/{id}?top_n=N`. Errors render a red banner.
+
+Changes in `app/main.py`:
+- Mount `app/static/` at `/static`.
+- New `/demo` route serves `static/index.html` via `FileResponse`.
+- Root `/` advertises `/demo` and `/docs`.
+- Both `/` and `/demo` are `include_in_schema=False` so they do not clutter Swagger.
+
+Tests:
+- Added `test_demo_page_serves_html` to `tests/test_health.py`.
+- `uv run pytest` -> **24 passed**.
+
+### Step 6: GitHub Actions CI

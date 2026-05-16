@@ -23,3 +23,10 @@ def test_response_includes_request_id_header(client: TestClient) -> None:
     response = client.get("/health")
     assert "x-request-id" in response.headers
     assert len(response.headers["x-request-id"]) >= 8
+
+
+def test_demo_page_serves_html(client: TestClient) -> None:
+    response = client.get("/demo")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Nytia Wellness Recommender" in response.text

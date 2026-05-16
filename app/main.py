@@ -3,15 +3,20 @@
 import logging
 import time
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.exceptions import register_exception_handlers
 from app.logging_config import configure_logging
 from app.routers import employees, health, products, recommendations
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 configure_logging()
 
@@ -74,13 +79,22 @@ app.include_router(employees.router)
 app.include_router(products.router)
 app.include_router(recommendations.router)
 
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-@app.get("/")
+
+@app.get("/", include_in_schema=False)
 def root() -> dict[str, str]:
-    """Root endpoint. Returns basic API info."""
+    """Root endpoint. Returns basic API info and the demo URL."""
     return {
         "name": "Nytia Recommender API",
         "version": "0.1.0",
         "docs": "/docs",
         "demo": "/demo",
     }
+
+
+@app.get("/demo", include_in_schema=False)
+def demo_page() -> FileResponse:
+    """Serve the demo single-page UI."""
+    return FileResponse(STATIC_DIR / "index.html")
