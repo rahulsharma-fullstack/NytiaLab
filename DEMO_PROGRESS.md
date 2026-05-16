@@ -147,3 +147,12 @@ Verified locally before commit:
 - `uv run pytest` -> 24 passed
 
 ### Step 7: README polish
+
+Rewrote `README.md` so it works as the demo-day briefing:
+- CI badge.
+- Plain-English "what it does".
+- 5-step Quickstart: docker compose up, uv sync, alembic upgrade, seed, uvicorn.
+- Endpoint table.
+- One-paragraph rules-v1 explanation with the weights spelled out.
+- Project structure overview with the three-role pattern.
+- Status section (current vs planned).
