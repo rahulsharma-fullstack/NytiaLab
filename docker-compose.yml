@@ -17,6 +17,39 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nytia-recommender:local
+    container_name: nytia-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Inside the docker network, Postgres is reachable by service name.
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: nytia_dev
+      DB_USER: nytia_user
+      DB_PASSWORD: local_dev_password
+      ENVIRONMENT: docker
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+    # Run migrations and then start the API. Idempotent on reboot.
+    command:
+      - sh
+      - -c
+      - "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    # If you want ML enabled inside the container, mount the trained model.
+    # Generate it locally with:
+    #     uv run python scripts/generate_training_data.py
+    #     uv run python scripts/train_model.py
+    volumes:
+      - ./data:/app/data:ro
+
 volumes:
   postgres_data:
     name: nytia_postgres_data

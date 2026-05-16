@@ -220,3 +220,27 @@ New deps: `scikit-learn`, `pandas`, `joblib`.
 - E0002 (already multi-condition): no ML boosts surface because all the high-risk conditions are already direct matches.
 
 `uv run pytest` -> **36 passed**.
+
+### Phase C: Containerization
+
+**C1. Production `Dockerfile`**
+Multi-stage build (builder + runtime), Python 3.12 slim, non-root user `app`, `HEALTHCHECK` hitting `/health` every 30s.
+
+- Builder stage: copies uv from the official `ghcr.io/astral-sh/uv:0.5.11` image (no apt needed), copies `pyproject.toml` + `uv.lock` first for layer caching, then `app/`, `alembic/`, `scripts/`. Two `uv sync` calls so dep-only layers stay cached when only source code changes.
+- Runtime stage: only `libpq5` + `curl` from apt (for psycopg2 + healthcheck), copies the prebuilt venv (`/opt/venv`) and the application from the builder. `PATH` points at the venv.
+- Final image size: 757 MB. Most of that is numpy + scipy + scikit-learn; could be cut later by switching to a non-ML container variant if needed.
+
+**C2. `.dockerignore`**
+Drops .git, .venv, tests, docs, model data, IDE state, README/markdown, and other dev-only files. Keeps build context small.
+
+**C3. Updated `docker-compose.yml`**
+Adds an `api` service that builds the `Dockerfile`, depends on `postgres` being healthy, sets env vars for the DB inside the docker network (`DB_HOST=postgres`), publishes port 8000, and runs `alembic upgrade head && uvicorn ...` as its command so migrations apply on every start.
+
+`./data` is mounted read-only into the container at `/app/data` so the ML model can be loaded if it was generated locally first.
+
+**Live smoke test:**
+- `docker build -t nytia-recommender:local .` -> success in ~20s after caches.
+- `docker compose up -d` -> Postgres healthy, API healthy.
+- `curl http://localhost:8000/health` -> 200 with `{"status":"healthy",...}`.
+- `curl http://localhost:8000/recommend/E0002?top_n=3` -> 200, `algorithm_version: "rules-ml-v1"`, sensible top-3 (Mental Health Therapy, Mindfulness App, Nutrition Counseling).
+- `curl http://localhost:8000/demo` -> 200 with the index.html shell.
