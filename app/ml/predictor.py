@@ -165,9 +165,7 @@ def aggregate_factor_severity(records: Iterable[HealthRecord]) -> dict[str, floa
     perfectly healthy on this factor", which is a stronger claim than the
     absence of a record actually supports.
     """
-    severity_by_factor: dict[str, float] = {
-        model_factor: _POPULATION_BASELINE for model_factor in FACTOR_LABEL_TO_DB
-    }
+    severity_by_factor: dict[str, float] = dict.fromkeys(FACTOR_LABEL_TO_DB, _POPULATION_BASELINE)
     for rec in records:
         model_factor = DB_TO_FACTOR_LABEL.get(rec.factor)
         if model_factor is None:

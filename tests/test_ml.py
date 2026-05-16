@@ -174,9 +174,9 @@ def test_predictor_responds_to_input_changes():
     if predictor is None:
         pytest.skip("model not trained; run scripts/train_model.py")
 
-    healthy = {name: 0.1 for name in FACTOR_LABEL_TO_DB}
+    healthy = dict.fromkeys(FACTOR_LABEL_TO_DB, 0.1)
     healthy["wellness"] = 0.9
-    sick = {name: 0.9 for name in FACTOR_LABEL_TO_DB}
+    sick = dict.fromkeys(FACTOR_LABEL_TO_DB, 0.9)
     sick["wellness"] = 0.1
 
     risks_healthy = predictor.predict_risk(healthy)

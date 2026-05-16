@@ -108,7 +108,7 @@ def score_product_for_employee(
                 contribution = ML_RISK_BOOST_BASE * relevance * probability
                 score += contribution
                 reasons.append(
-                    f"ML predicts elevated {condition} risk " f"({int(round(probability * 100))}%)"
+                    f"ML predicts elevated {condition} risk ({int(round(probability * 100))}%)"
                 )
 
     return ScoredProduct(product=product, score=score, reasons=reasons)

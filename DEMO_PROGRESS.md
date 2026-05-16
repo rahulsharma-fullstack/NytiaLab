@@ -260,3 +260,54 @@ Updated:
   - 008 HTML + vanilla JS demo UI (not React + Vite)
   - 009 Centralised exception handlers + {error, detail} shape
   - 010 Rate limiting via slowapi, tighter on /recommend
+
+### Final smoke test
+
+End-to-end check against the live `nytia-api` container talking to `nytia-postgres`:
+
+- `uv run pytest` -> **36 passed**.
+- `uv run ruff check .` + `uv run ruff format --check .` -> clean (after `--fix`).
+- `curl http://localhost:8000/health` -> 200, `{"status":"healthy",...}`.
+- `curl http://localhost:8000/employees` -> 200, 8 employees returned.
+- `/recommend/{id}?top_n=1` for E0001..E0008 (all `rules-ml-v1`):
+
+  | Employee | Top recommendation |
+  |---------|--------------------|
+  | E0001 | Cardiac Rehabilitation Program (7.08) |
+  | E0002 | Mental Health Therapy Sessions (6.30) |
+  | E0003 | Nutrition Counseling Service (3.46) |
+  | E0004 | Mental Health Therapy Sessions (6.30) |
+  | E0005 | Smoking Cessation Program (4.31) |
+  | E0006 | Physical Activity Tracker + Coach (4.43) |
+  | E0007 | Sleep Hygiene Coaching Program (3.70) |
+  | E0008 | Physical Activity Tracker + Coach (4.55) |
+
+Each top pick is consistent with the employee's profile (e.g. E0008 has Movement + Osteoporosis and the top rec is a movement device; E0002 has severe depression + mental illness and the top rec is therapy).
+
+---
+
+## What is complete vs what is still ahead
+
+**Done in this session (Days 8-9 + ML phase + containerization + docs):**
+
+- API hardening: structured JSON logging, central error handlers with `{error, detail}` shape, request-id middleware, CORS, rate limiting (slowapi).
+- ML risk-prediction layer (`rules-ml-v1`): synthetic data generator, RandomForest training script, predictor with lazy thread-safe loading, integration into the recommender with capped boosts and plain-English ML reasons. Falls back to `rules-v1` if the model pickle is missing.
+- Containerization: multi-stage Dockerfile, non-root user, healthcheck, `.dockerignore`, compose service that runs migrations + uvicorn together.
+- Tests: 36 passing across scoring, ranking, ML predictor + boost rules, endpoint integration (including 429 rate limit), and the demo HTML route.
+- Docs: README, `docs/compliance.md`, `docs/architecture.md`, expanded `DECISIONS.md`.
+- CI: GitHub Actions running ruff + tests on every push to main and on PRs.
+- Demo UI at `/demo`.
+
+**Deferred (user will handle the cloud phase later):**
+
+- Cloud Run deployment.
+- Cloud SQL instance + IAM.
+- Cloud Build pipeline.
+- Artifact Registry + image signing.
+- Secret Manager for credentials.
+- Trivy scanning.
+
+**Still blocked on others:**
+
+- Teammate's real synthetic training data (we are using a placeholder generated locally).
+- Nouridine clarification on the data-dictionary-vs-record-level question and direct Hinsight DB access.
