@@ -1,11 +1,14 @@
-"""HTTP endpoints for product (wellness service) operations."""
+"""HTTP endpoints for product (wellness service) operations.
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+ProductNotFoundError is handled centrally in `app.exceptions`.
+"""
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas import ProductDetailResponse, ProductResponse
-from app.services import ProductNotFoundError, ProductService
+from app.services import ProductService
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -59,11 +62,5 @@ def get_product(
 ) -> ProductDetailResponse:
     """Return full product details including condition and factor tags."""
     service = ProductService(db)
-    try:
-        product = service.get_product(product_id)
-    except ProductNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    product = service.get_product(product_id)
     return ProductDetailResponse.model_validate(product)

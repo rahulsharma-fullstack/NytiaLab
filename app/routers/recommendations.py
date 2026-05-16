@@ -1,11 +1,14 @@
-"""HTTP endpoints for recommendations."""
+"""HTTP endpoints for recommendations.
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+EmployeeNotFoundError is handled centrally in `app.exceptions`.
+"""
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas import RecommendationItem, RecommendationResponse
-from app.services import EmployeeNotFoundError, RecommenderService
+from app.services import RecommenderService
 
 router = APIRouter(prefix="/recommend", tags=["recommendations"])
 
@@ -22,13 +25,7 @@ def get_recommendations(
 ) -> RecommendationResponse:
     """Generate ranked, explained wellness service recommendations for an employee."""
     service = RecommenderService(db)
-    try:
-        bundle = service.recommend(employee_id, top_n=top_n)
-    except EmployeeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    bundle = service.recommend(employee_id, top_n=top_n)
 
     items = [
         RecommendationItem(

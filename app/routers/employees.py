@@ -1,11 +1,15 @@
-"""HTTP endpoints for employee operations."""
+"""HTTP endpoints for employee operations.
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+Service exceptions (EmployeeNotFoundError, ...) are handled centrally in
+`app.exceptions`, so routers stay tight and just call the service layer.
+"""
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas import EmployeeResponse, HealthRecordResponse
-from app.services import EmployeeNotFoundError, EmployeeService
+from app.services import EmployeeService
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
@@ -37,13 +41,7 @@ def get_employee(
 ) -> EmployeeResponse:
     """Return a single employee by their ID."""
     service = EmployeeService(db)
-    try:
-        employee = service.get_employee(employee_id)
-    except EmployeeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    employee = service.get_employee(employee_id)
     return EmployeeResponse.model_validate(employee)
 
 
@@ -58,11 +56,5 @@ def get_employee_health_records(
 ) -> list[HealthRecordResponse]:
     """Return all health records for the given employee, newest first."""
     service = EmployeeService(db)
-    try:
-        records = service.get_health_records(employee_id)
-    except EmployeeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    records = service.get_health_records(employee_id)
     return [HealthRecordResponse.model_validate(rec) for rec in records]

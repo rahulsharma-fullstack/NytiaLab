@@ -83,3 +83,18 @@ Changed:
 Smoke checks:
 - `uv run python -c "from app.main import app"` - imports cleanly.
 - `uv run pytest` - still 9 passed.
+
+### Step 3: endpoint integration tests with TestClient
+
+New files:
+- `tests/conftest.py` - in-memory SQLite engine + sessionmaker, `db_session` fixture, `client` fixture (overrides `get_db`), `seeded_db` fixture with 2 employees, 2 health records, 3 products.
+- `tests/test_health.py` - root, /health, x-request-id header.
+- `tests/test_endpoints.py` - 11 tests covering employees list/get/missing/health-records, products list + filter by condition + filter by service_type, recommend ranked + top_n + missing employee + invalid top_n.
+
+Cleanup (made centralised error handlers actually work):
+- `app/routers/employees.py`, `app/routers/products.py`, `app/routers/recommendations.py` - removed router-level try/except. Services raise `EmployeeNotFoundError`/`ProductNotFoundError` and the global handlers in `app/exceptions.py` translate them to clean 404 JSON.
+
+Result:
+- `uv run pytest` -> **23 passed**.
+
+### Step 4: ...
