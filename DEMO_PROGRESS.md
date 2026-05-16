@@ -156,3 +156,24 @@ Rewrote `README.md` so it works as the demo-day briefing:
 - One-paragraph rules-v1 explanation with the weights spelled out.
 - Project structure overview with the three-role pattern.
 - Status section (current vs planned).
+
+---
+
+## Day 8-9 continuation (after demo plan was scrapped)
+
+User instruction: complete the project except cloud parts. New work below.
+
+### Phase A: rate limiting
+
+New dep: `slowapi` (`uv add slowapi`).
+
+New file:
+- `app/rate_limit.py` - configures a `Limiter` keyed by client IP, defines `DEFAULT_LIMIT = "120/minute"` and `RECOMMEND_LIMIT = "30/minute"`, exposes `install_rate_limiter(app)` that wires the limiter, middleware, and a JSON 429 handler with the same `{error, detail}` shape as the other handlers.
+
+Changed:
+- `app/main.py` - calls `install_rate_limiter(app)`.
+- `app/routers/recommendations.py` - the recommend endpoint now takes `request: Request` and is decorated with `@limiter.limit(RECOMMEND_LIMIT)`. Tighter cap on the heavy endpoint.
+
+Tests:
+- New `test_recommend_rate_limit_returns_429` in `tests/test_endpoints.py` - hits `/recommend/E0001` 35 times in a row and asserts at least one 429 with `error = "rate_limit_exceeded"`.
+- `uv run pytest` -> **25 passed**.

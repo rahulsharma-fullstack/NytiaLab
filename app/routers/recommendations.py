@@ -3,10 +3,11 @@
 EmployeeNotFoundError is handled centrally in `app.exceptions`.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.rate_limit import RECOMMEND_LIMIT, limiter
 from app.schemas import RecommendationItem, RecommendationResponse
 from app.services import RecommenderService
 
@@ -18,7 +19,9 @@ router = APIRouter(prefix="/recommend", tags=["recommendations"])
     response_model=RecommendationResponse,
     summary="Get personalized wellness service recommendations",
 )
+@limiter.limit(RECOMMEND_LIMIT)
 def get_recommendations(
+    request: Request,
     employee_id: str,
     top_n: int = Query(default=10, ge=1, le=50, description="Number of recommendations"),
     db: Session = Depends(get_db),

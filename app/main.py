@@ -14,6 +14,7 @@ from starlette.responses import Response
 
 from app.exceptions import register_exception_handlers
 from app.logging_config import configure_logging
+from app.rate_limit import install_rate_limiter
 from app.routers import employees, health, products, recommendations
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -71,6 +72,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(RequestLoggingMiddleware)
+
+install_rate_limiter(app)
 
 register_exception_handlers(app)
 

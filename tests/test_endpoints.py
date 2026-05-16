@@ -118,3 +118,15 @@ def test_recommend_validates_top_n_bounds(client: TestClient, seeded_db: Session
     assert response.status_code == 422
     body = response.json()
     assert body["error"] == "validation_error"
+
+
+def test_recommend_rate_limit_returns_429(client: TestClient, seeded_db: Session) -> None:
+    """The /recommend endpoint is capped at 30 req/min. Sending 35 fast
+    requests from a single client should trigger at least one 429 with
+    our standard {error, detail} shape."""
+    statuses = [client.get("/recommend/E0001").status_code for _ in range(35)]
+    assert 429 in statuses
+    blocked_response = client.get("/recommend/E0001")
+    if blocked_response.status_code == 429:
+        body = blocked_response.json()
+        assert body["error"] == "rate_limit_exceeded"
