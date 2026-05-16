@@ -177,3 +177,46 @@ Changed:
 Tests:
 - New `test_recommend_rate_limit_returns_429` in `tests/test_endpoints.py` - hits `/recommend/E0001` 35 times in a row and asserts at least one 429 with `error = "rate_limit_exceeded"`.
 - `uv run pytest` -> **25 passed**.
+
+### Phase B: ML risk-prediction layer
+
+The teammate has not delivered synthetic training data yet, so I generated my own as a placeholder. The pipeline is real; the data is local.
+
+New deps: `scikit-learn`, `pandas`, `joblib`.
+
+**B1. Generate synthetic training data**
+- `scripts/generate_training_data.py` - 5,000 rows. Inputs: 8 factor severity scores (continuous 0..1, Beta(2,3) distribution). Outputs: 6 binary chronic-condition labels. Risk for each condition is a hand-tuned weighted sum of relevant factors -> sigmoid -> Bernoulli draw. Wellness is internally inverted (high wellness = low contribution to risk) and is also slightly anti-correlated with depression to be a bit realistic. Random seed 42 for reproducibility.
+- Saved to `data/synthetic_training.csv` (~832 KB). Condition prevalence: CVD 65%, T2D 42%, CKD 22%, Cancer 20%, MI 58%, Osteo 29%.
+
+**B2. Train RandomForest model**
+- `scripts/train_model.py` - one multi-output `RandomForestClassifier` (n_estimators=100, max_depth=12, min_samples_leaf=5) predicts all 6 conditions in one shot. 80/20 train/test split. Per-condition precision, recall, f1, ROC-AUC, and positive rate saved to `data/model_metrics.json`. Model + feature/label metadata pickled to `data/model.pkl` via joblib.
+- Metrics summary: AUC 0.60-0.66 across conditions on synthetic data. Precision/recall at the 0.5 threshold is weak on rare classes (CKD, Cancer) which is expected - we use the model as a *probability source* for boosting, not for hard classification.
+
+**B3. Predictor module**
+- New `app/ml/predictor.py`:
+  - `RiskPredictor` class wraps the loaded model and the factor / condition label vocabularies.
+  - `RiskPredictor.from_disk()` returns `None` if the pickle is missing; the API keeps working in pure rules mode in that case.
+  - `get_predictor()` is a lazy, thread-safe singleton accessor.
+  - `aggregate_factor_severity(records)` collapses a list of `HealthRecord` rows into a single severity score per factor in 0..1. Factors not reported fall back to the population baseline (~0.4) rather than 0, because "no record" is not the same as "perfectly healthy".
+  - DB-name <-> model-feature-name mapping tables (`FACTOR_LABEL_TO_DB`, `CONDITION_LABEL_TO_DB`).
+- `app/ml/__init__.py` exposes the public surface.
+
+**B4. Recommender integration**
+- `app/services/scoring.py`:
+  - New constants: `ML_ALGORITHM_VERSION = "rules-ml-v1"`, `ML_RISK_BOOST_BASE = 1.5`, `ML_RISK_PROB_THRESHOLD = 0.6`.
+  - `score_product_for_employee` takes an optional `risk_scores: dict[str, float]` argument. For each predicted condition above 0.6, if the employee does *not* already have that condition in their records and the product targets it, add a boost of `1.5 * relevance * probability` and append an ML reason line.
+  - `rank_products` plumbs the risk dict through.
+- `app/services/recommender.py`:
+  - On every call, asks `get_predictor()`. If it returns a predictor, runs `aggregate_factor_severity` + `predict_risk` and passes the result into `rank_products`. The bundle's `algorithm_version` becomes `rules-ml-v1`; otherwise it stays `rules-v1`.
+  - `_log_recommendations` now takes the algorithm version as a parameter so the audit table records exactly which algo produced each row.
+
+**B5. Tests + drift fix**
+- New `tests/test_ml.py` - 11 tests covering `aggregate_factor_severity` (mapping, max-per-factor, baseline fill, unknown factor handling), predictor load behavior (None when no pickle, real predictor otherwise), `predict_risk` output shape and responsiveness to inputs, and scoring boost rules (below threshold no-op, above threshold boost + reason, no double-count when employee already has the condition).
+- Fixed `test_recommend_for_employee_returns_ranked_results` in `tests/test_endpoints.py` - the `algorithm_version` assertion now accepts either `rules-v1` or `rules-ml-v1` because the predictor loads automatically when the pickle is present.
+
+**Live sanity checks against the real Postgres:**
+- E0001 (Sleep + Stress + CVD): ML adds "elevated Mental Illness risk (64%)" boost to Sleep Hygiene and Mindfulness products. Top recommendation is now Sleep Hygiene Coaching.
+- E0003 (Nutrition + CKD, single record): ML adds "elevated Cardiovascular Disease risk (72%)" boost. Pulls Nutrition Counseling and Mindfulness/Sleep into the top results.
+- E0002 (already multi-condition): no ML boosts surface because all the high-risk conditions are already direct matches.
+
+`uv run pytest` -> **36 passed**.

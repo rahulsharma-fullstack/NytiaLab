@@ -10,10 +10,16 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.ml import aggregate_factor_severity, get_predictor
 from app.models import Recommendation
 from app.repositories import ProductRepository
 from app.services.employee_service import EmployeeService
-from app.services.scoring import ALGORITHM_VERSION, ScoredProduct, rank_products
+from app.services.scoring import (
+    ALGORITHM_VERSION,
+    ML_ALGORITHM_VERSION,
+    ScoredProduct,
+    rank_products,
+)
 
 
 @dataclass
@@ -44,16 +50,27 @@ class RecommenderService:
         self.employee_service.get_employee(employee_id)
         records = self.employee_service.get_health_records(employee_id)
 
-        # 2. If the employee has no health records, return empty results
+        # 2. Decide which algorithm version we are using on this request.
+        #    The ML predictor is only used when its model file is available.
+        predictor = get_predictor()
+        algo_version = ML_ALGORITHM_VERSION if predictor is not None else ALGORITHM_VERSION
+
+        # 3. If the employee has no health records, return empty results
         if not records:
             return RecommendationBundle(
                 employee_id=employee_id,
                 generated_at=datetime.now(UTC),
-                algorithm_version=ALGORITHM_VERSION,
+                algorithm_version=algo_version,
                 items=[],
             )
 
-        # 3. Pull candidate products. For now, we score against the entire active catalog.
+        # 4. Get ML risk predictions when the predictor is available.
+        risk_scores: dict[str, float] = {}
+        if predictor is not None:
+            factor_severity = aggregate_factor_severity(records)
+            risk_scores = predictor.predict_risk(factor_severity)
+
+        # 5. Pull candidate products. For now, we score against the entire active catalog.
         #    Later we could pre-filter to only products tagged for the employee's
         #    conditions/factors, but for a small catalog (~12 products) full scoring is fine.
         candidates = self.product_repo.list_products(
@@ -62,26 +79,31 @@ class RecommenderService:
             offset=0,
         )
 
-        # 4. Eager-load conditions/factors for each candidate so the scoring function
+        # 6. Eager-load conditions/factors for each candidate so the scoring function
         #    can read them without triggering N+1 queries.
         candidate_ids = [p.id for p in candidates]
         candidates_full = [self.product_repo.get_by_id(pid) for pid in candidate_ids]
         # Filter out any None values (shouldn't happen but defensive)
         candidates_full = [c for c in candidates_full if c is not None]
 
-        # 5. Score and rank
-        scored = rank_products(candidates_full, records, top_n=top_n)
+        # 7. Score and rank
+        scored = rank_products(
+            candidates_full,
+            records,
+            top_n=top_n,
+            risk_scores=risk_scores,
+        )
 
-        # 6. Diversify: ensure mix of factor and condition services in top results.
+        # 8. Diversify: ensure mix of factor and condition services in top results.
         scored = self._diversify(scored, top_n=top_n)
 
-        # 7. Log recommendations for audit
-        self._log_recommendations(employee_id, scored)
+        # 9. Log recommendations for audit
+        self._log_recommendations(employee_id, scored, algo_version)
 
         return RecommendationBundle(
             employee_id=employee_id,
             generated_at=datetime.now(UTC),
-            algorithm_version=ALGORITHM_VERSION,
+            algorithm_version=algo_version,
             items=scored,
         )
 
@@ -123,6 +145,7 @@ class RecommenderService:
         self,
         employee_id: str,
         scored: list[ScoredProduct],
+        algorithm_version: str,
     ) -> None:
         """Insert audit records for the generated recommendations."""
         if not scored:
@@ -134,7 +157,7 @@ class RecommenderService:
                 product_id=sp.product.id,
                 score=Decimal(str(round(sp.score, 4))),
                 reason="; ".join(sp.reasons) if sp.reasons else None,
-                algorithm_version=ALGORITHM_VERSION,
+                algorithm_version=algorithm_version,
             )
             for sp in scored
         ]

@@ -84,7 +84,7 @@ def test_recommend_for_employee_returns_ranked_results(
     body = response.json()
 
     assert body["employee_id"] == "E0001"
-    assert body["algorithm_version"] == "rules-v1"
+    assert body["algorithm_version"] in {"rules-v1", "rules-ml-v1"}
     assert len(body["recommendations"]) >= 2
 
     top = body["recommendations"][0]

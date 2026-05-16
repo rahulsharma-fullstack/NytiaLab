@@ -51,8 +51,9 @@ env/
 .vscode/
 .idea/
 
-# Cursor
+# Cursor / Claude Code session state
 .cursor/
+.claude/
 
 # OS files
 .DS_Store
@@ -60,6 +61,9 @@ Thumbs.db
 
 # ML / artifacts
 *.pkl
+/data/
 
 # Notes:
 # - uv.lock is intentionally NOT ignored (kept in repo)
+# - /data/ is generated locally by scripts/generate_training_data.py and
+#   scripts/train_model.py; not tracked in git
