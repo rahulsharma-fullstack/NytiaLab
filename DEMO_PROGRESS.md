@@ -132,3 +132,18 @@ Tests:
 - `uv run pytest` -> **24 passed**.
 
 ### Step 6: GitHub Actions CI
+
+New file:
+- `.github/workflows/ci.yml` - runs on push to `main` and on PRs to `main`.
+  - Sets up Python 3.12 + uv (with uv cache enabled)
+  - `uv sync --frozen`
+  - `uv run ruff check .`
+  - `uv run ruff format --check .`
+  - `uv run pytest -v`
+
+Verified locally before commit:
+- `uv run ruff check .` -> All checks passed
+- `uv run ruff format --check .` -> 39 files already formatted
+- `uv run pytest` -> 24 passed
+
+### Step 7: README polish
