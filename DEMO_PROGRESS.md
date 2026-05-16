@@ -244,3 +244,19 @@ Adds an `api` service that builds the `Dockerfile`, depends on `postgres` being 
 - `curl http://localhost:8000/health` -> 200 with `{"status":"healthy",...}`.
 - `curl http://localhost:8000/recommend/E0002?top_n=3` -> 200, `algorithm_version: "rules-ml-v1"`, sensible top-3 (Mental Health Therapy, Mindfulness App, Nutrition Counseling).
 - `curl http://localhost:8000/demo` -> 200 with the index.html shell.
+
+### Phase D: Docs + decision log
+
+New files:
+- `docs/compliance.md` - PIPEDA principles mapped to what the code does, HIPAA-style controls (access, audit, transport, validation, error handling), ML-specific notes (synthetic data flagged), and an open-items checklist (retention policy, auth, self-serve history, Secret Manager).
+- `docs/architecture.md` - request-flow diagram (Client -> CORS -> request logger -> rate limiter -> Router -> Service -> Repository -> Postgres + ML predictor sidecar), ML training/serving diagram, data model relationships, tech stack table, local docker compose topology, and a thumbnail of the future cloud shape.
+
+Updated:
+- `DECISIONS.md` - added seven new ADRs:
+  - 004 Three-role pattern
+  - 005 Rules-v1 + ML boost (rules-ml-v1)
+  - 006 Self-generated synthetic training data (placeholder)
+  - 007 Cloud Run + Cloud SQL (not GKE)
+  - 008 HTML + vanilla JS demo UI (not React + Vite)
+  - 009 Centralised exception handlers + {error, detail} shape
+  - 010 Rate limiting via slowapi, tighter on /recommend
