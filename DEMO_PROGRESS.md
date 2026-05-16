@@ -57,3 +57,29 @@ Entries are appended below as I work. Each entry has a timestamp, what I did, an
 - Read `app/main.py`, `app/services/scoring.py`, `app/services/recommender.py`, `app/routers/recommendations.py`, `app/routers/employees.py`, `tests/test_scoring.py`, `scripts/seed_data.py`, `app/schemas/recommendation.py`.
 - Confirmed recommender works end-to-end and matches handoff doc.
 - Created this progress log.
+
+### Step 1: scoring + ranking unit tests
+
+- Added 7 tests to `tests/test_scoring.py`: factor match math, condition vs factor priority, severity weight, status weight, combined scoring, `rank_products` top_n, `rank_products` zero-score filter.
+- `uv run pytest` -> 9 passed.
+- Commit: `test: add scoring and ranking unit tests` (pushed to main).
+
+### Step 2: error handling, CORS, structured logging, request middleware
+
+Decision: bundled three middleware-style concerns into one commit since they all touch `app/main.py`.
+
+New files:
+- `app/exceptions.py` - handlers for `EmployeeNotFoundError`, `ProductNotFoundError`, `StarletteHTTPException`, `RequestValidationError`, and a catch-all `Exception` -> 500 with JSON. All responses now have a stable `{error, detail}` shape.
+- `app/logging_config.py` - `JsonFormatter` + `configure_logging()`. Emits one JSON line per log record on stdout. No third-party deps.
+
+Changed:
+- `app/main.py`:
+  - Calls `configure_logging()` at import time.
+  - Adds `CORSMiddleware` (open for the demo - lock down for prod later).
+  - Adds `RequestLoggingMiddleware` that logs method/path/status/duration with a generated `x-request-id` header on each response.
+  - Registers all exception handlers via `register_exception_handlers(app)`.
+  - Root `/` now also advertises the future `/demo` UI URL.
+
+Smoke checks:
+- `uv run python -c "from app.main import app"` - imports cleanly.
+- `uv run pytest` - still 9 passed.
