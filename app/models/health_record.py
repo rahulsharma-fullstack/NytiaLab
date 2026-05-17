@@ -47,7 +47,7 @@ class HealthRecord(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     employee_id: Mapped[str] = mapped_column(
-        String(10), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False
+        String(20), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False
     )
     record_date: Mapped[date] = mapped_column(Date, nullable=False)
 

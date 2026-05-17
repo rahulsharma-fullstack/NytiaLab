@@ -15,6 +15,7 @@ from app.models.health_record import (
 from app.models.product import VALID_SERVICE_TYPES, Product
 from app.models.product_tag import ProductCondition, ProductFactor
 from app.models.recommendation import Recommendation
+from app.models.tenant import Tenant
 
 __all__ = [
     "Employee",
@@ -23,6 +24,7 @@ __all__ = [
     "ProductCondition",
     "ProductFactor",
     "Recommendation",
+    "Tenant",
     "VALID_FACTORS",
     "VALID_CONDITIONS",
     "VALID_STATUSES",

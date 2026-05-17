@@ -21,7 +21,7 @@ class Recommendation(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     employee_id: Mapped[str] = mapped_column(
-        String(10), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False
+        String(20), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False
     )
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     score: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)

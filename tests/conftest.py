@@ -23,6 +23,7 @@ from app.models import (
     Product,
     ProductCondition,
     ProductFactor,
+    Tenant,
 )
 
 
@@ -69,10 +70,25 @@ def seeded_db(db_session: Session) -> Session:
     """A db_session with a small, deterministic dataset for endpoint tests."""
     today = date(2026, 1, 3)
 
+    # Tenant row required because employees.tenant_id is NOT NULL with an FK
+    # to tenants.id. Pure test plumbing; no test assertion checks this.
+    db_session.add(Tenant(id="T_NYTIA_DEMO", name="Nytia Demo"))
+    db_session.flush()
+
     db_session.add_all(
         [
-            Employee(id="E0001", region="Central East", tenant="NYTIA"),
-            Employee(id="E0002", region="North West", tenant="NYTIA"),
+            Employee(
+                id="E0001",
+                region="Central East",
+                tenant="NYTIA",
+                tenant_id="T_NYTIA_DEMO",
+            ),
+            Employee(
+                id="E0002",
+                region="North West",
+                tenant="NYTIA",
+                tenant_id="T_NYTIA_DEMO",
+            ),
         ]
     )
 
