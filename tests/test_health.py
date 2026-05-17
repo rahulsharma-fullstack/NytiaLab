@@ -30,3 +30,20 @@ def test_demo_page_serves_html(client: TestClient) -> None:
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Nytia Wellness Recommender" in response.text
+
+
+def test_org_demo_page_serves_html(client: TestClient) -> None:
+    response = client.get("/demo/org")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Nytia Org Wellness Recommender" in response.text
+    # The page should advertise the org-level algorithm version.
+    assert "org-rules-v1" in response.text
+
+
+def test_root_advertises_both_demo_urls(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["demo"] == "/demo"
+    assert body["demo_org"] == "/demo/org"

@@ -89,16 +89,23 @@ if STATIC_DIR.exists():
 
 @app.get("/", include_in_schema=False)
 def root() -> dict[str, str]:
-    """Root endpoint. Returns basic API info and the demo URL."""
+    """Root endpoint. Returns basic API info and the demo URLs."""
     return {
         "name": "Nytia Recommender API",
         "version": "0.1.0",
         "docs": "/docs",
         "demo": "/demo",
+        "demo_org": "/demo/org",
     }
 
 
 @app.get("/demo", include_in_schema=False)
 def demo_page() -> FileResponse:
-    """Serve the demo single-page UI."""
+    """Serve the per-employee demo single-page UI."""
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/demo/org", include_in_schema=False)
+def demo_org_page() -> FileResponse:
+    """Serve the org-level (tenant) demo single-page UI."""
+    return FileResponse(STATIC_DIR / "org.html")
