@@ -101,6 +101,16 @@ def _accumulate(
     `seen_employees[name]` tracks which employee ids have already been
     counted in the suffering / at_risk counters for this dimension, so a
     second record on the same employee does not double-count the head.
+
+    Mixed-status edge case: if the same employee has both Suffering and At
+    Risk records for the same dimension, the first record encountered
+    determines which head count they go in. The pressure score still counts
+    all records (so total severity * status weighting is correct), only the
+    "how many distinct people" tally is first-seen-wins.
+
+    Production-grade alternative: pick the most recent record per
+    (employee, dimension) and use its status. Left as a future change so
+    Nouridine can decide which behavior fits the dashboard semantics.
     """
     pressure = bucket.setdefault(name, DimensionPressure(name=name))
     pressure.pressure_score += _weight_for(record)
