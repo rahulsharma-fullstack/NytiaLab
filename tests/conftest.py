@@ -184,3 +184,148 @@ def seeded_db(db_session: Session) -> Session:
 
     db_session.commit()
     return db_session
+
+
+@pytest.fixture
+def seeded_org_db(db_session: Session) -> Session:
+    """A richer dataset designed for the org-level endpoint tests.
+
+    Three tenants:
+      T_TEST_IBM   : 4 employees, mental-health-heavy
+      T_TEST_MS    : 2 employees, diabetes-heavy
+      T_TEST_EMPTY : 0 employees (used to test empty-workforce path)
+
+    Three products that cover the conditions/factors above plus one that
+    targets neither, so we can also test zero-score exclusion.
+    """
+    today = date(2026, 1, 3)
+
+    db_session.add_all(
+        [
+            Tenant(id="T_TEST_IBM", name="Test IBM"),
+            Tenant(id="T_TEST_MS", name="Test Microsoft"),
+            Tenant(id="T_TEST_EMPTY", name="Test Empty"),
+        ]
+    )
+    db_session.flush()
+
+    # IBM-flavoured: mental-health-heavy population
+    ibm_employees = [
+        ("E_T1_1", "Stress", "Mental Illness", "Suffering", "Very Important"),
+        ("E_T1_2", "Sleep", "Mental Illness", "Suffering", "Very Important"),
+        ("E_T1_3", "Depression", "Mental Illness", "Suffering", "Very Important"),
+        ("E_T1_4", "Stress", "Mental Illness", "At Risk", "Important"),
+    ]
+    for emp_id, factor, condition, status, severity in ibm_employees:
+        db_session.add(
+            Employee(
+                id=emp_id,
+                region="Toronto",
+                tenant="IBM",
+                tenant_id="T_TEST_IBM",
+            )
+        )
+        db_session.flush()
+        db_session.add(
+            HealthRecord(
+                employee_id=emp_id,
+                record_date=today,
+                factor=factor,
+                health_condition=condition,
+                status=status,
+                severity=severity,
+                value=Decimal("50"),
+                unit="score",
+                improvement_rate=Decimal("0.20"),
+            )
+        )
+
+    # Microsoft-flavoured: diabetes-heavy population
+    ms_employees = [
+        ("E_T2_1", "Nutrition", "Type 2 Diabetes", "Suffering", "Important"),
+        ("E_T2_2", "Obesity", "Type 2 Diabetes", "Suffering", "Important"),
+    ]
+    for emp_id, factor, condition, status, severity in ms_employees:
+        db_session.add(
+            Employee(
+                id=emp_id,
+                region="Vancouver",
+                tenant="Microsoft",
+                tenant_id="T_TEST_MS",
+            )
+        )
+        db_session.flush()
+        db_session.add(
+            HealthRecord(
+                employee_id=emp_id,
+                record_date=today,
+                factor=factor,
+                health_condition=condition,
+                status=status,
+                severity=severity,
+                value=Decimal("70"),
+                unit="score",
+                improvement_rate=Decimal("0.20"),
+            )
+        )
+
+    # Products
+    mh_therapy = Product(
+        name="Mental Health Therapy",
+        description="Therapy sessions.",
+        category="service",
+        service_type="factor_service",
+        price=Decimal("180.00"),
+        is_active=True,
+    )
+    diabetes = Product(
+        name="Diabetes Management Program",
+        description="Glucose monitoring + diet.",
+        category="program",
+        service_type="condition_service",
+        price=Decimal("599.00"),
+        is_active=True,
+    )
+    bone = Product(
+        name="Bone Health Program",
+        description="Strength + calcium.",
+        category="program",
+        service_type="condition_service",
+        price=Decimal("349.00"),
+        is_active=True,
+    )
+    db_session.add_all([mh_therapy, diabetes, bone])
+    db_session.flush()
+
+    db_session.add_all(
+        [
+            ProductCondition(
+                product_id=mh_therapy.id,
+                health_condition="Mental Illness",
+                relevance_score=Decimal("1.00"),
+            ),
+            ProductFactor(
+                product_id=mh_therapy.id,
+                factor="Depression",
+                relevance_score=Decimal("1.00"),
+            ),
+            ProductCondition(
+                product_id=diabetes.id,
+                health_condition="Type 2 Diabetes",
+                relevance_score=Decimal("1.00"),
+            ),
+            ProductFactor(
+                product_id=diabetes.id,
+                factor="Nutrition",
+                relevance_score=Decimal("0.80"),
+            ),
+            ProductCondition(
+                product_id=bone.id,
+                health_condition="Osteoporosis",
+                relevance_score=Decimal("1.00"),
+            ),
+        ]
+    )
+
+    db_session.commit()
+    return db_session

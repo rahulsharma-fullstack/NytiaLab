@@ -15,7 +15,7 @@ from starlette.responses import Response
 from app.exceptions import register_exception_handlers
 from app.logging_config import configure_logging
 from app.rate_limit import install_rate_limiter
-from app.routers import employees, health, products, recommendations
+from app.routers import employees, health, organization, products, recommendations
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -81,6 +81,7 @@ app.include_router(health.router)
 app.include_router(employees.router)
 app.include_router(products.router)
 app.include_router(recommendations.router)
+app.include_router(organization.router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

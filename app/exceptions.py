@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.services import EmployeeNotFoundError, ProductNotFoundError
+from app.services import EmployeeNotFoundError, ProductNotFoundError, TenantNotFoundError
 
 logger = logging.getLogger("nytia.errors")
 
@@ -31,6 +31,13 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"error": "product_not_found", "detail": str(exc)},
+        )
+
+    @app.exception_handler(TenantNotFoundError)
+    async def tenant_not_found(_request: Request, exc: TenantNotFoundError) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"error": "tenant_not_found", "detail": str(exc)},
         )
 
     @app.exception_handler(StarletteHTTPException)
