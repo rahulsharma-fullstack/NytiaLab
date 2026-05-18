@@ -13,12 +13,14 @@ it under SaMD (Software as a Medical Device) hygiene principles.
 
 ## What data we handle
 
-- **Employee identifier** (`E0001` format, opaque, not a name).
-- **Region + tenant** (geographic + organisational metadata).
+- **Employee identifier** (`E0001` or `E_IBM_001` format, opaque, not a name).
+- **Tenant id and name** (partner organisation like IBM, Microsoft).
+- **Region + legacy tenant string** (geographic + organisational metadata).
 - **Health records**: factor, chronic condition, status, severity, value,
   improvement rate, record date.
 - **Generated recommendations**: product id, score, reasons, algorithm
-  version, generated_at. Stored in the `recommendations` audit table.
+  version, generated_at. Stored in the `recommendations` audit table
+  (per-employee runs only; org-level runs are not currently audited).
 
 No PII outside of an opaque employee id. No names, no contact details, no
 free-text employee input.
@@ -50,6 +52,22 @@ included because most engineering tooling is described in it.
 - **Authentication/Authorization**: not implemented yet. The API is currently
   open inside the local network. When deployed, will live behind Cloud Run
   IAM + a service-to-service token for callers.
+- **Tenant isolation: currently fake.** This is the most important gap
+  in this section.
+  - The org-level routes take `tenant_id` from the URL path with no auth
+    check (`GET /tenants/{id}/profile`,
+    `GET /tenants/{id}/recommendations`).
+  - Anyone with the URL can read any tenant's workforce data. That is OK
+    for the demo and local dev and is flagged with a TODO comment at the
+    top of `app/routers/organization.py`.
+  - For HIPAA / PIPEDA compliance in production this must change to JWT
+    authentication with a tenant claim. Every query that touches
+    tenant-scoped tables (`employees`, `health_records`,
+    `recommendations`) must filter by the authenticated tenant's id.
+    Never trust the URL parameter alone. Cross-tenant data access is the
+    single biggest privacy risk in this codebase.
+  - This is the same control point that PIPEDA principle 7 (Safeguards)
+    and HIPAA's access-control technical safeguard both require.
 - **Database credentials**: never hardcoded. Loaded from environment via
   `pydantic-settings` (see `app/config.py`). The local `.env` is gitignored.
 - **Container user**: the production image runs as a non-root user (`app`).
@@ -105,10 +123,16 @@ included because most engineering tooling is described in it.
 
 ## Open items
 
+- [ ] **Tenant isolation: JWT auth + per-tenant query scoping.** Critical
+  before any real tenant data lands. PIPEDA principle 7 / HIPAA access
+  control. Currently the URL parameter is trusted.
 - [ ] Retention policy for `recommendations` audit rows (PIPEDA principle 5).
-- [ ] Authentication on the API (currently open).
+- [ ] Authentication on the API in general (currently open).
 - [ ] Self-serve recommendation history endpoint for employees (PIPEDA 9).
 - [ ] Secret Manager integration once cloud deploy is wired up.
+- [ ] Org-level audit log: today only per-employee runs are audited; if
+  the HR dashboard becomes a billable surface we will want to log org
+  recommendation runs too.
 - [ ] Final privacy lead identified in the deployed environment.
 
 ## References

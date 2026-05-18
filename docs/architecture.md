@@ -1,10 +1,19 @@
 # Architecture
 
-Plain-English walkthrough of how the system fits together. Two diagrams: the
-request flow today, and the ML training and serving loop. Both use ASCII so
-they live happily inside the repo.
+Plain-English walkthrough of how the system fits together. Diagrams use
+ASCII so they live happily inside the repo.
 
-## 1. Request flow
+The codebase serves **two** recommendation flows that share the same
+scoring weights:
+
+- **Per-employee** at `/recommend/{employee_id}` plus the `/demo` UI.
+- **Org-level** (per-tenant workforce) at `/tenants/{id}/recommendations`
+  plus the `/demo/org` UI.
+
+Both walk the same middleware -> router -> service -> repository
+pipeline. They differ only in which service runs and what gets aggregated.
+
+## 1. Request flow (per-employee)
 
 ```
 +--------+         +-------------------+
@@ -67,11 +76,96 @@ These are layered on at FastAPI startup in `app/main.py`:
 - **CORS** middleware (open in dev; lock down in prod).
 - **Request logging** middleware: assigns an `x-request-id`, logs one JSON
   line per request with method, path, status code, duration_ms.
-- **Rate limiter** (slowapi): 30/min on `/recommend`, 120/min default.
+- **Rate limiter** (slowapi): 30/min on `/recommend` AND
+  `/tenants/{id}/recommendations`, 120/min default elsewhere.
 - **Exception handlers** in `app/exceptions.py`: every error has the
   `{error, detail}` JSON shape with the right HTTP code.
 
-## 2. ML training and serving
+## 2. Request flow (org-level)
+
+```
++--------+         +-------------------+
+| Client | HTTPS   |  FastAPI process  |
+| (HR    | ------> |  (uvicorn :8000)  |
+| buyer) |         +-------------------+
++--------+                  |
+                  same middleware stack as above
+                            |
+                            v
+                +----------------------------+
+                | Router                     |
+                | app/routers/organization.py|
+                +----------------------------+
+                            |
+              (1) validate tenant exists
+                            |
+                            v
+                +-------------------+
+                | TenantService     |  -- raises TenantNotFoundError (-> 404)
+                | get_tenant(id)    |
+                +-------------------+
+                            |
+                            v
+                +-------------------------+
+                | OrgRecommenderService   |
+                | recommend(tenant, top_n)|
+                +-------------------------+
+                  |          |             |
+                  v          v             v
+        +-----------------+ +-----------+ +-----------------------+
+        | OrgAggregator   | | Product   | | scoring.              |
+        | aggregate_      | | Repository| | score_product_for_    |
+        | workforce()     | | list_     | | organization()        |
+        +-----------------+ | products  | | rank_products_for_    |
+                  |         +-----------+ | organization()        |
+                  v               |       +-----------------------+
+        +-----------------+       |
+        | Employee        |       |
+        | Repository      |       v
+        | get_all_by_     |  +----------+
+        | tenant() with   |  | Postgres |
+        | health records  |  +----------+
+        +-----------------+
+                  |
+                  v
+              +----------+
+              | Postgres |
+              +----------+
+```
+
+The aggregator runs in **pure Python** today. It pulls every employee
+for the tenant (with health records eager-loaded via `selectinload`)
+and rolls them up into per-condition and per-factor pressure scores
+plus distinct-employee head counts.
+
+### Scale ceiling
+
+Suitable for tenants up to **~1000 employees**. The demo runs 30 per
+tenant comfortably. For larger tenants, the right move is to refactor
+the aggregator into a SQL `GROUP BY`:
+
+```sql
+SELECT health_condition, severity, status, COUNT(DISTINCT employee_id)
+FROM health_records hr
+JOIN employees e ON e.id = hr.employee_id
+WHERE e.tenant_id = :tenant_id
+GROUP BY health_condition, severity, status;
+```
+
+Both `factor` and `health_condition` already have their own indexes,
+and `tenant_id` is indexed on `employees`. Compute the pressure
+weights in the SELECT or post-process the grouped rows. This is
+deferred until the first real tenant exceeds the limit; see ADR 011.
+
+### Why org math reuses per-employee weights
+
+The pressure score itself is the sum of `severity_weight * status_weight`
+across every record. Multiplying it by `CONDITION_MATCH_BASE` or
+`FACTOR_MATCH_BASE` and `relevance` gives the same answer you would get
+by summing the per-employee score across the workforce. One file
+(`scoring.py`) holds the constants; tuning them changes both flows.
+
+## 3. ML training and serving
 
 ```
 +-------------------------+
@@ -126,25 +220,40 @@ Notes:
 - If `data/model.pkl` is missing, the predictor returns `None` and the API
   silently falls back to pure `rules-v1` mode. Nothing crashes.
 
-## 3. Data model
+## 4. Data model
 
-Six business tables plus an alembic version table.
+Seven business tables plus an alembic version table.
 
 ```
-employees -------(1:N)------> health_records
-                                   ^
-                                   | references factor + condition by name
-
+tenants  -------(1:N)----->  employees -------(1:N)-----> health_records
+                                ^                                 ^
+                                | tenant_id FK                    | references factor +
+                                |                                 |   condition by name
+                                |                                 |
+                                v
+                          recommendations  (audit log of per-employee runs)
+                                ^
+                                |
 products ---(1:N)---> product_conditions ---(N:1)--- conditions (string enum)
         \---(1:N)---> product_factors    ---(N:1)--- factors    (string enum)
-
-employees + products ----(N:N via)----> recommendations  (audit log)
 ```
+
+- `tenants` is the partner organisation (IBM, Microsoft, etc.). Added in
+  the second Alembic migration.
+- `employees.tenant_id` is the new FK to `tenants.id`. The legacy
+  free-text `employees.tenant` column is kept alongside for backwards
+  compatibility; new code should prefer `tenant_id` and the
+  `tenant_ref` relationship.
+- `employees.id` was widened from `String(10)` to `String(20)` so the
+  tenant-prefixed IDs (`E_IBM_001`, `E_MICROSOFT_001`, ...) fit. The
+  legacy `E0001`-style IDs continue to fit.
+- The `recommendations` audit table is **per-employee only**. Org-level
+  recommendations are not currently audited (deliberate, see ADR 011).
 
 Valid factor and condition names are CHECK-constrained at the DB level.
 See `app/models/health_record.py` for the canonical list.
 
-## 4. Tech stack at a glance
+## 5. Tech stack at a glance
 
 | Layer | Tool |
 |-------|------|
@@ -162,7 +271,7 @@ See `app/models/health_record.py` for the canonical list.
 | CI | GitHub Actions |
 | Deploy target | Cloud Run + Cloud SQL (deferred to a later phase) |
 
-## 5. Local run topology
+## 6. Local run topology
 
 `docker compose up` brings up two containers on the same Docker network:
 
@@ -179,7 +288,19 @@ See `app/models/health_record.py` for the canonical list.
 The host can reach the API on `http://localhost:8000`. The API reaches
 Postgres on `postgres:5432` inside the compose network.
 
-## 6. Future shape (cloud)
+### Demo pages
+
+Two demo UIs served by FastAPI itself from `app/static/`:
+
+| Path | File | Audience | What it shows |
+|------|------|----------|---------------|
+| `/demo` | `index.html` | Internal | One employee's profile + per-employee recommendations |
+| `/demo/org` | `org.html` | HR buyer | One tenant's workforce profile + bulk recommendations |
+
+Both are single-file vanilla JS pages, share the same teal palette and
+card layout, and link to each other so it is easy to switch demos.
+
+## 7. Future shape (cloud)
 
 Out of scope for this milestone. Planned:
 

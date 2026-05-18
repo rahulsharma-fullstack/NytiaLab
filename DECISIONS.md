@@ -250,3 +250,89 @@ Limit excess returns a 429 with `error = "rate_limit_exceeded"`.
   syntax.
 - 30/min on the heavy endpoint is generous for the demo use case and
   conservative enough to protect the DB.
+
+---
+
+## ADR 011: Org-level recommender reuses per-employee scoring via workforce aggregation
+
+**Date:** 2026-05-17
+**Status:** Accepted
+
+### Context
+
+Nouridine clarified that the buyer is the partner organisation (IBM,
+Microsoft, etc.), not the individual employee. The HR manager wants
+ranked **bulk** wellness product recommendations for their whole
+workforce, with reasons phrased in population terms ("affects 22 of your
+30 employees"), not individual terms.
+
+The original per-employee `/recommend/{employee_id}` endpoint stays
+useful for future product surfaces but is not what this buyer cares
+about.
+
+### Decision
+
+Build a separate org-level recommender on top of the existing per-employee
+pieces. Algorithm version: `org-rules-v1`.
+
+1. **New aggregation layer** (`app/services/org_aggregator.py`). For a
+   given tenant, fetch every employee with their health records, then
+   roll up to per-condition and per-factor `pressure_score` values plus
+   per-employee head counts in Suffering and At Risk.
+2. **New scoring function** (`score_product_for_organization` in
+   `app/services/scoring.py`). For each product condition/factor that
+   matches the workforce, add `BASE * relevance * pressure_score`. The
+   same `CONDITION_MATCH_BASE = 2.0` and `FACTOR_MATCH_BASE = 1.5`
+   constants are imported, not redefined.
+3. **New orchestrator service** (`app/services/org_recommender.py`)
+   wires aggregation, product fetch, scoring, and ranking, and returns
+   a presentation-free bundle. The router enriches it with `tenant_name`
+   for the JSON response.
+4. **New routes** under `/tenants` and a new HTML demo at `/demo/org`.
+
+### Why this math
+
+The pressure score is itself the sum of `severity_weight * status_weight`
+across every record in the tenant. So `score_product_for_organization`
+mathematically reduces to:
+
+```
+org_score(product, tenant)  =  sum over employees of per_employee_score(product, employee)
+```
+
+Products that help the most employees naturally float to the top, and
+products targeting rare conditions in this workforce score low even if
+they would be a perfect individual match. The per-employee weight
+constants do all the heavy lifting; the aggregation step just sums.
+
+### Consequences
+
+- **Per-employee path is untouched.** Same algorithm version, same
+  endpoint, same demo UI.
+- **Three-role pattern preserved.** Router calls service, service calls
+  repository + scoring; no SQL in services, no business logic in
+  repositories.
+- **Constants live in one file.** Tuning the weights flips the behaviour
+  of both flows together, which is the desired property.
+- **Scale ceiling.** Current implementation aggregates in Python. Fine up
+  to about 1000 employees per tenant on commodity hardware. For tenants
+  larger than that, refactor to SQL `GROUP BY` with indexes on
+  `health_records` (factor and health_condition are already indexed).
+  Documented at the top of `org_aggregator.py` so the next person knows
+  what to do.
+- **Tenant isolation is currently fake.** The tenant id comes from the
+  URL with no auth check. For HIPAA / PIPEDA compliance the production
+  build will need JWT authentication with a tenant claim and per-tenant
+  query scoping. Tracked in `docs/compliance.md`.
+
+### Alternatives considered
+
+- **Clustering-based recommender.** K-means over employees, then
+  recommend per cluster. Rejected: too complex for the timeline, harder
+  to explain to an HR buyer, and gives reasons that read like "cluster 3
+  is at risk" instead of plain population stats.
+- **Top-K product across all employees individually.** Run the
+  per-employee recommender for every employee, then take the most
+  frequently top-ranked product. Rejected: does not give population-aware
+  reasons, double-counts effort, and produces unstable results when
+  ties happen at the per-employee level.
