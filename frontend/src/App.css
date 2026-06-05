@@ -1,0 +1,60 @@
+/* Phase 1 placeholder styles. Replaced in Phase 2 with the real
+ * dashboard layout. */
+
+.placeholder {
+  max-width: 720px;
+  margin: 4rem auto;
+  padding: 2.5rem;
+  background: var(--nytia-surface);
+  border-radius: var(--nytia-radius);
+  box-shadow: var(--nytia-shadow);
+  border: 1px solid var(--nytia-border);
+}
+
+.placeholder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.placeholder-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--nytia-text);
+}
+
+.placeholder-pill {
+  background: var(--nytia-primary);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+}
+
+.placeholder-lead {
+  font-size: 1rem;
+  color: var(--nytia-text);
+  margin-bottom: 1rem;
+}
+
+.placeholder-note {
+  font-size: 0.9rem;
+  color: var(--nytia-muted);
+  margin-bottom: 2rem;
+}
+
+.placeholder-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}

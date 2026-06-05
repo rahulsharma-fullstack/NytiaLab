@@ -33,6 +33,7 @@ exclude = [
     ".venv",
     "alembic/versions",
     "__pycache__",
+    "frontend",
 ]
 
 [tool.ruff.lint]

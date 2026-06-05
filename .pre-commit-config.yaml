@@ -3,7 +3,11 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        # frontend/dist contains build artefacts; do not rewrite them.
+        # The rest of frontend/ is fine to lint with these generic hooks.
+        exclude: ^frontend/dist/
       - id: end-of-file-fixer
+        exclude: ^frontend/dist/
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files

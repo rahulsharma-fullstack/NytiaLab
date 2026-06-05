@@ -63,7 +63,20 @@ Thumbs.db
 *.pkl
 /data/
 
+# Frontend (React + Vite)
+frontend/node_modules/
+frontend/.vite/
+frontend/*.log
+frontend/npm-debug.log*
+frontend/pnpm-debug.log*
+# The earlier blanket `dist/` rule (line 13) would catch frontend/dist
+# too. We intentionally COMMIT the built dashboard so the demo works
+# without a local Node install. Re-include it explicitly:
+!frontend/dist/
+!frontend/dist/**
+
 # Notes:
 # - uv.lock is intentionally NOT ignored (kept in repo)
 # - /data/ is generated locally by scripts/generate_training_data.py and
 #   scripts/train_model.py; not tracked in git
+# - frontend/dist/ IS tracked so the React dashboard works one-click

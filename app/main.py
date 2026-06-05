@@ -19,6 +19,12 @@ from app.routers import employees, health, organization, products, recommendatio
 
 STATIC_DIR = Path(__file__).parent / "static"
 
+# Built React app for the new org dashboard. Vite outputs to frontend/dist
+# at the project root. The directory only exists after `npm run build`; the
+# mount below is guarded so the API starts cleanly even on a fresh clone
+# that has not run the frontend build yet.
+DASHBOARD_DIR = Path(__file__).parent.parent / "frontend" / "dist"
+
 configure_logging()
 
 access_logger = logging.getLogger("nytia.access")
@@ -86,6 +92,21 @@ app.include_router(organization.router)
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+# Mount the built React app at /dashboard. `html=True` makes the directory
+# serve index.html for the bare path and also acts as a 404 fallback,
+# which keeps client-side routing happy if we ever add it.
+if DASHBOARD_DIR.exists():
+    app.mount(
+        "/dashboard",
+        StaticFiles(directory=DASHBOARD_DIR, html=True),
+        name="dashboard",
+    )
+else:
+    logging.getLogger("nytia.startup").info(
+        "skipping /dashboard mount; frontend/dist not present "
+        "(run `npm run build` inside frontend/ to enable it)"
+    )
+
 
 @app.get("/", include_in_schema=False)
 def root() -> dict[str, str]:
@@ -96,6 +117,7 @@ def root() -> dict[str, str]:
         "docs": "/docs",
         "demo": "/demo",
         "demo_org": "/demo/org",
+        "dashboard": "/dashboard/",
     }
 
 
