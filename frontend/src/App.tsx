@@ -5,13 +5,17 @@ import {
   getProfile,
   getRecommendations,
   getTenants,
+  type OrgRecommendation,
   type OrgRecommendationResponse,
   type Tenant,
   type TenantProfile,
 } from "./api";
+import ContactPage from "./components/ContactPage";
 import Controls from "./components/Controls";
 import RecommendationList from "./components/RecommendationList";
 import WorkforceSummary from "./components/WorkforceSummary";
+
+type View = "dashboard" | "contact";
 
 const DEFAULT_TOP_N = 10;
 
@@ -23,6 +27,13 @@ export default function App() {
   const [recommendations, setRecommendations] = useState<OrgRecommendationResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Contact-flow state. View switches between the dashboard and the
+  // ContactPage. Selected product is the one whose "Contact provider"
+  // button was clicked. Going back to dashboard keeps every other state
+  // untouched, so the user does not lose their tenant + recommendations.
+  const [view, setView] = useState<View>("dashboard");
+  const [selectedProduct, setSelectedProduct] = useState<OrgRecommendation | null>(null);
 
   const clampedTopN = Math.max(1, Math.min(50, Math.round(topN)));
 
@@ -121,7 +132,54 @@ export default function App() {
     }
   };
 
+  const handleContactProvider = (product: OrgRecommendation) => {
+    setSelectedProduct(product);
+    setView("contact");
+  };
+
+  const handleBackToDashboard = () => {
+    setView("dashboard");
+    // Intentionally leave selectedProduct untouched so a quick re-open of
+    // the contact page would reuse the same context. It is overwritten
+    // on the next "Contact provider" click anyway.
+  };
+
   // ---- render ----
+
+  if (view === "contact" && selectedProduct && profile) {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <div className="app-header-titles">
+            <h1>Nytia Org Wellness Recommender</h1>
+            <p className="app-tagline">
+              Workforce-wide bulk recommendations for partner organisations
+            </p>
+          </div>
+          <div className="app-header-meta">
+            <span className="app-pill">Organization Dashboard</span>
+          </div>
+        </header>
+
+        <main className="app-main">
+          <ContactPage
+            product={selectedProduct}
+            tenantName={profile.tenant_name}
+            totalEmployees={profile.total_employees}
+            onBack={handleBackToDashboard}
+          />
+        </main>
+
+        <footer className="app-footer">
+          <a href="/demo">Per-employee demo</a>
+          <span className="footer-dot">&middot;</span>
+          <a href="/demo/org">Vanilla org demo</a>
+          <span className="footer-dot">&middot;</span>
+          <a href="/docs">API docs</a>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -159,7 +217,11 @@ export default function App() {
 
         <div className="grid">
           <WorkforceSummary profile={profile} loading={loading} />
-          <RecommendationList data={recommendations} loading={loading} />
+          <RecommendationList
+            data={recommendations}
+            loading={loading}
+            onContactProvider={handleContactProvider}
+          />
         </div>
       </main>
 

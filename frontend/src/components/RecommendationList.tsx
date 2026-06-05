@@ -1,9 +1,10 @@
-import type { OrgRecommendationResponse } from "../api";
+import type { OrgRecommendation, OrgRecommendationResponse } from "../api";
 import RecommendationCard from "./RecommendationCard";
 
 type Props = {
   data: OrgRecommendationResponse | null;
   loading: boolean;
+  onContactProvider: (product: OrgRecommendation) => void;
 };
 
 function formatGenerated(iso: string): string {
@@ -14,7 +15,7 @@ function formatGenerated(iso: string): string {
   }
 }
 
-export default function RecommendationList({ data, loading }: Props) {
+export default function RecommendationList({ data, loading, onContactProvider }: Props) {
   const headerMeta =
     data == null
       ? "-"
@@ -39,7 +40,12 @@ export default function RecommendationList({ data, loading }: Props) {
         ) : (
           <div className="rec-list">
             {data.recommendations.map((rec, i) => (
-              <RecommendationCard key={rec.product_id} rec={rec} rank={i + 1} />
+              <RecommendationCard
+                key={rec.product_id}
+                rec={rec}
+                rank={i + 1}
+                onContactProvider={onContactProvider}
+              />
             ))}
           </div>
         )}

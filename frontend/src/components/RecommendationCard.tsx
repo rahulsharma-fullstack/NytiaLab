@@ -3,6 +3,7 @@ import type { OrgRecommendation } from "../api";
 type Props = {
   rec: OrgRecommendation;
   rank: number; // 1-based
+  onContactProvider: (product: OrgRecommendation) => void;
 };
 
 function formatPrice(price: string | number | null, currency: string): string | null {
@@ -12,7 +13,7 @@ function formatPrice(price: string | number | null, currency: string): string | 
   return `${currency || "USD"} ${n.toFixed(2)}`;
 }
 
-export default function RecommendationCard({ rec, rank }: Props) {
+export default function RecommendationCard({ rec, rank, onContactProvider }: Props) {
   const isTreatment = rec.service_type === "condition_service";
   const priceLabel = formatPrice(rec.price, rec.currency);
   return (
@@ -48,6 +49,17 @@ export default function RecommendationCard({ rec, rank }: Props) {
           <li key={i}>{reason}</li>
         ))}
       </ul>
+
+      <div className="rec-actions">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => onContactProvider(rec)}
+          aria-label={`Contact provider for ${rec.product_name}`}
+        >
+          Contact provider
+        </button>
+      </div>
     </article>
   );
 }
